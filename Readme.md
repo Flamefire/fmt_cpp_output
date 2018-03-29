@@ -1,5 +1,7 @@
 # C++ Error Formatter
 
+[![Build Status](https://travis-ci.org/Flamefire/fmt_cpp_output.svg?branch=master)](https://travis-ci.org/Flamefire/fmt_cpp_output)
+
 The goal of this python script is to provide readable C++ error messages.
 
 Problem: Any error involving templates easily produces an unreadable mess and a "block of text". Even finding the actual causing code position is very hard.
