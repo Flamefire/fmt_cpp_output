@@ -1,28 +1,25 @@
 import re
 import sys
+from copy import deepcopy
 
 class Type:
     """Class defining a C++ type with optional template parameters"""
-    def __init__(self):
-        self.name = ""
-        self.templateParams = []
+    def __init__(self, name = "", templateParams = None):
+        self.name = name
+        if templateParams:
+            self.templateParams = templateParams
+        else:
+            self.templateParams = []
     def trimNames(self):
         self.name = self.name.strip()
         for x in self.templateParams:
             x.trimNames()
     def isTemplate(self):
         return len(self.templateParams) != 0
-
-def cleanStd(input, stripSTD = True):
-    output = re.sub(r"\b__cxx11::", "", input)
-    output = re.sub(r",\s*boost::detail::variant::void_\b", "", output)
-    output = re.sub(r"\bbasic_string<char(, std::char_traits<char>, std::allocator<char> )?>", "string", output)
-    output = re.sub(r"\b(list<(.*)), std::allocator<\2> >", r"\1>", output)
-    output = re.sub(r"\b(set<(.*?)), std::less<\2>, std::allocator<\2> >", r"\1>", output)
-    output = re.sub(r"\b(map<(.*?), (.*?)), std::less<\2>, std::allocator<std::pair<\2 const, \3> >", r"\1>", output)
-    if stripSTD:
-        output = re.sub(r"\bstd::", "", output)
-    return output
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
 
 def parseTypeString(inTypeString):
     """Generate a Type defining the passed template type (string)"""
@@ -43,8 +40,40 @@ def parseTypeString(inTypeString):
     curType.trimNames()
     return curType
 
+def cleanType(inType):
+    if not inType.isTemplate():
+        return inType
+    inType.templateParams = [cleanType(param) for param in inType.templateParams]
+    if inType.name == "list" and len(inType.templateParams) == 2:
+        if inType.templateParams[-1].name == "allocator" and inType.templateParams[0] == inType.templateParams[-1].templateParams[0]:
+            inType.templateParams.pop()
+    if inType.name == "set" and len(inType.templateParams) == 3:
+        if inType.templateParams[-1].name == "allocator" and inType.templateParams[0] == inType.templateParams[-1].templateParams[0]:
+            inType.templateParams.pop()
+    if inType.name == "set" and len(inType.templateParams) == 2:
+        if inType.templateParams[-1].name == "less" and inType.templateParams[0] == inType.templateParams[-1].templateParams[0]:
+            inType.templateParams.pop()
+    if inType.name == "map" and len(inType.templateParams) == 4:
+        firstTypeConst = deepcopy(inType.templateParams[0])
+        firstTypeConst.name += " const"
+        pair = Type("pair", [firstTypeConst, inType.templateParams[1]])
+        if inType.templateParams[-1].name == "allocator" and pair == inType.templateParams[-1].templateParams[0]:
+            inType.templateParams.pop()
+    if inType.name == "map" and len(inType.templateParams) == 3:
+        if inType.templateParams[-1].name == "less" and inType.templateParams[0] == inType.templateParams[-1].templateParams[0]:
+            inType.templateParams.pop()
+    return inType
+
+def cleanStd(input, stripSTD = True):
+    output = re.sub(r"\b__cxx11::", "", input)
+    output = re.sub(r",\s*boost::detail::variant::void_\b", "", output)
+    output = re.sub(r"\bbasic_string<char(, std::char_traits<char>, std::allocator<char> )?>", "string", output)
+    if stripSTD:
+        output = re.sub(r"\bstd::", "", output)
+    return output
+
 def formatType(curType, indent = ""):
-    """Formats the passed type"""
+    """Format the passed type"""
     # When the type is not a template just return it
     if not curType.isTemplate():
         return indent + curType.name
@@ -64,13 +93,12 @@ def formatType(curType, indent = ""):
     return result
     
 
-def formatTypeString(inTypeString):
-    """Formats the passed type string"""
+def formatTypeString(inTypeString, clean = True):
+    """Format the passed type string"""
     type = parseTypeString(inTypeString)
+    if clean:
+        type = cleanType(type)
     formated = formatType(type)
-    #formated = re.sub(r">\n\s*,", ">,", formated)
-    #templateDef[0] = formated
-    #return " ".join(templateDef)
     return formated
 
 def findMatchingBrace(string, startPos):

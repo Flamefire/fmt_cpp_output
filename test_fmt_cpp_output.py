@@ -7,7 +7,11 @@ def testFiltering():
 
 testCases = []
 testCases.append(("tuple<int>", "tuple<int>"))
+testCases.append(("tuple<const int>", "tuple<const int>"))
+testCases.append(("tuple<int const>", "tuple<int const>"))
 testCases.append(("tuple<int, int>", "tuple<int, int>"))
+testCases.append(("tuple<const int, int>", "tuple<const int, int>"))
+testCases.append(("tuple<int const, int>", "tuple<int const, int>"))
 testCases.append(("tuple<int, int, int>", """
 tuple<
   int,
@@ -32,6 +36,7 @@ testCases = [(x[0], x[1].lstrip("\n")) for x in testCases]
 
 def testFormat():
     for case in testCases:
+        print(case[0])
         assert formatTypeString(case[0]) == case[1]
 
 def testFormatTypes():
