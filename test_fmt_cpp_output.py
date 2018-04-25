@@ -32,7 +32,7 @@ testCases = [(x[0], x[1].lstrip("\n")) for x in testCases]
 
 def testFormat():
     for case in testCases:
-        assert formatTemplate(case[0]) == case[1]
+        assert formatTypeString(case[0]) == case[1]
 
 def testFormatTypes():
     for case in testCases:

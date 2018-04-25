@@ -1,65 +1,77 @@
 import re
 import sys
 
+class Type:
+    """Class defining a C++ type with optional template parameters"""
+    def __init__(self):
+        self.name = ""
+        self.templateParams = []
+    def trimNames(self):
+        self.name = self.name.strip()
+        for x in self.templateParams:
+            x.trimNames()
+    def isTemplate(self):
+        return len(self.templateParams) != 0
+
 def cleanStd(input, stripSTD = True):
     output = re.sub(r"\b__cxx11::", "", input)
     output = re.sub(r",\s*boost::detail::variant::void_\b", "", output)
     output = re.sub(r"\bbasic_string<char(, std::char_traits<char>, std::allocator<char> )?>", "string", output)
+    output = re.sub(r"\b(list<(.*)), std::allocator<\2> >", r"\1>", output)
+    output = re.sub(r"\b(set<(.*?)), std::less<\2>, std::allocator<\2> >", r"\1>", output)
+    output = re.sub(r"\b(map<(.*?), (.*?)), std::less<\2>, std::allocator<std::pair<\2 const, \3> >", r"\1>", output)
     if stripSTD:
         output = re.sub(r"\bstd::", "", output)
     return output
 
-def generateTemplateDef(inType):
-    cur = ""
-    curDepth = 0
-    result = list()
-    curList = result
-    curStack = [result]
-    for c in inType:
+def parseTypeString(inTypeString):
+    """Generate a Type defining the passed template type (string)"""
+    curType = Type()
+    curStack = []
+    for c in inTypeString:
         if c == '<':
-            curStack.append(curList)
-            curList = []
-            curStack[-1].append(curList)
-            curList.append(cur.strip() + c)
-            cur = ""
+            curStack.append(curType)
+            curType = Type()
+            curStack[-1].templateParams.append(curType)
         elif c == '>':
-            cur = cur.strip()
-            if cur:
-                curList.append(cur)
-            curList.append(c)
-            cur = ""
-            curList = curStack.pop()
+            curType = curStack.pop()
         elif c == ',':
-            curList.append(cur.strip() + c)
-            cur = ""
+            curType = Type()
+            curStack[-1].templateParams.append(curType)
         else:
-            cur += c
-    if len(cur) > 0:
-        curList.append(cur.strip())
-    return result
+            curType.name += c
+    curType.trimNames()
+    return curType
 
-def printTemplate(templateDef, indent = ""):
-    hasTemplateInside = any(type(x) is list for x in templateDef)
-    splitLines = hasTemplateInside or len(templateDef) > 4
-    subIndent = indent + "  " if splitLines else ""
-    templateDef[1:-1] = [subIndent + x if type(x) is str else x for x in templateDef[1:-1]]
-    templateDef = [x if type(x) is str else printTemplate(x, subIndent) for x in templateDef]
+def formatType(curType, indent = ""):
+    """Formats the passed type"""
+    # When the type is not a template just return it
+    if not curType.isTemplate():
+        return indent + curType.name
+    # Split lines of subtypes if we have template template params or the number of template params exceeds a threshold
+    hasTemplateParam = any(x.isTemplate() for x in curType.templateParams)
+    splitLines = hasTemplateParam or len(curType.templateParams) > 2
+    
+    result = indent + curType.name + "<"
     if splitLines:
-        templateDef[0] = indent + templateDef[0]
-        templateDef[-1] = indent + templateDef[-1]
-        result = "\n".join(templateDef)
+        subIndent = indent + "  "
+        formattedParams = [formatType(x, subIndent) for x in curType.templateParams]
+        result += "\n" + ",\n".join(formattedParams)
+        result += "\n" + indent + ">"
     else:
-        templateDef = [x + " " if x[-1] == "," else x for x in templateDef]
-        result = indent + "".join(templateDef)
+        formattedParams = [formatType(x) for x in curType.templateParams]
+        result += ", ".join(formattedParams) + ">"
     return result
     
 
-def formatTemplate(inType):
-    templateDef = generateTemplateDef(inType)
-    formated = printTemplate(templateDef[0])
-    formated = re.sub(r">\n\s*,", ">,", formated)
-    templateDef[0] = formated
-    return " ".join(templateDef)
+def formatTypeString(inTypeString):
+    """Formats the passed type string"""
+    type = parseTypeString(inTypeString)
+    formated = formatType(type)
+    #formated = re.sub(r">\n\s*,", ">,", formated)
+    #templateDef[0] = formated
+    #return " ".join(templateDef)
+    return formated
 
 def findMatchingBrace(string, startPos):
     openBrace = string[startPos]
@@ -93,7 +105,7 @@ def formatTypes(inString):
             break
         endPos = findMatchingBrace(inString, match.start(3)) + 1
         typeStr = inString[match.start():endPos]
-        formattedMatch = "\n" + formatTemplate(typeStr)
+        formattedMatch = "\n" + formatTypeString(typeStr)
         outString = outString.replace(typeStr, formattedMatch)
         curPos = endPos
     return outString
