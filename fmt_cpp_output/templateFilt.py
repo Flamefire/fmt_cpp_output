@@ -4,7 +4,7 @@ import sys
 def cleanStd(input, stripSTD = True):
     output = re.sub(r"\b__cxx11::", "", input)
     output = re.sub(r",\s*boost::detail::variant::void_\b", "", output)
-    output = re.sub(r"\bbasic_string<char>", "string", output)
+    output = re.sub(r"\bbasic_string<char(, std::char_traits<char>, std::allocator<char> )?>", "string", output)
     if stripSTD:
         output = re.sub(r"\bstd::", "", output)
     return output
