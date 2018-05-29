@@ -46,19 +46,13 @@ into this:
 	boost::variant<
 	  boost::detail::variant::recursive_flag<int>,
 	  string,
-	  vector<
-		boost::recursive_variant_,
-		allocator<boost::recursive_variant_>
-	  >,
+	  vector<boost::recursive_variant_>,
 	  list<boost::recursive_variant_>
 	>; Visitable2 = 
 	boost::variant<
 	  boost::detail::variant::recursive_flag<int>,
 	  string,
-	  vector<
-		boost::recursive_variant_,
-		allocator<boost::recursive_variant_>
-	  >,
+	  vector<boost::recursive_variant_>,
 	  list<boost::recursive_variant_>
 	>]’:
 	test.cpp:16:64:   required from here

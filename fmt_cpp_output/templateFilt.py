@@ -44,7 +44,7 @@ def cleanType(inType):
     if not inType.isTemplate():
         return inType
     inType.templateParams = [cleanType(param) for param in inType.templateParams]
-    if inType.name == "list" and len(inType.templateParams) == 2:
+    if (inType.name == "list" or inType.name == "vector") and len(inType.templateParams) == 2:
         if inType.templateParams[-1].name == "allocator" and inType.templateParams[0] == inType.templateParams[-1].templateParams[0]:
             inType.templateParams.pop()
     if inType.name == "set" and len(inType.templateParams) == 3:
